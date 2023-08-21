@@ -8,21 +8,24 @@ from datetime import datetime
 from telebot import TeleBot
 import time
 
-import json
-# import random
-
+#----- Для REPL-IT
 # # === обращение к БД Replit, поддержка работы 24/7
 # import os
-# from background import keep_alive  # #импорт функции для поддержки работоспособности
+# from backgroud import keep_alive  #импорт функции для поддержки работоспособности
 #
-# from replit import db
-# import base
+# # from replit import db
+# # import base
 #
 # import pip
 # pip.main(['install', 'pytelegrambotapi'])
 #
-
+# import telebot
+# from telebot import types
+# import time
+# from datetime import datetime
+#
 # my_secret = os.environ['token']
+# bot = telebot.TeleBot(my_secret, skip_pending=True)
 # -----------------------------
 
 bot = telebot.TeleBot(TG_TOKEN, skip_pending=True)
