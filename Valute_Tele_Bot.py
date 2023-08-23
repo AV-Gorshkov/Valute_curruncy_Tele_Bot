@@ -136,6 +136,21 @@ def usd_eur():
 # 💸💰⬆️⬇️🔻
 
 # = = = Команды для управления приложением
+
+@bot.message_handler(commands=["qw"])
+def fun_qww(message):
+    bot.send_message(message.chat.id, f'🔖 Список доступных ')
+    text = ""
+    i = 0
+    for q in dict_curr().keys():
+       text = text + q
+
+    bot.send_message(message.chat.id, f'🔖 Список:\n{text}')
+    # bot.send_message(message.chat.id, f'🔖 Список доступных валют:\n{list_curr()}')
+    # text = message.text.upper()
+    # bot.send_message(message.chat.id, text)
+    # qw = [x for x in dict_currency().keys()]
+    # bot.send_message(message.chat.id, list_curr())
 # -----  Справка
 @bot.message_handler(
     commands=["Справка", "СПРАВКА", "справка", "help", "Help", "HELP", "hElp", "heLp", "helP", "HElp", "HElP", "HELp",
