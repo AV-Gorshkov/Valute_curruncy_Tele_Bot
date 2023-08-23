@@ -7,6 +7,24 @@ from telebot import types
 from datetime import datetime
 from telebot import TeleBot
 import time
+import re
+
+#===================
+#    # Отправляем       # длинное       # сообщение       # по       # частям
+    # log_query = requests.get(api_log)    # - текст длинного сообщения с сайта через API от сервера
+
+    # currency_dict = log_query.json()['Valute']    # перевод в JSON ответа от сервера
+
+    # todos = log_query.json()['Valute']   # данные в формате JSON
+
+    # if len(str(todos)) > 4096:
+    #     for x in range(0, len(str(todos)), 4096):
+    #         bot.send_message(message.chat.id, str(todos)[x:x + 4096])
+    # else:
+    #     bot.send_message(message.chat.id, str(todos))
+# ==========================
+
+
 
 #----- Для REPL-IT
 # # === обращение к БД Replit, поддержка работы 24/7
@@ -57,23 +75,27 @@ INFO = """ Описание взаимодействия с приложение
 (Пример: /list, /usd, /Menu)
 💷 Информация по курсу для одной валюты - ввести ID валюты из списка валют
 (Пример: eur, NZD, Usd)
-💶 Конвертер валют - информация по курсу между двумя выбранными валютами 
-(Пример: usd-eur, AUD-NOK, Czk - Zar)
+💶 Конвертер валют - информация по курсу между двумя выбранными валютами. 
+В качестве разделителя может быть: точка, тире, пробел
+(Пример: usd-eur, AUD . NOK, Czk Zar)
 """
 
 #  Блок переменных
 dict_currency = {}   # словарь валют
-dict_symbol = {"AUD":"$", "AZN":"₼", "GBP":"£", "AMD":"Դ", "BYN":"Br", "BGN":"лв", "BRL":"R$", "HUF":"Ft", "VND":"₫", "HKD":"$",
-           "GEL":"₾", "DKK":"kr", "AED":"Dh", "USD":"$", "EUR":"€", "EGP":".ج.م •", "INR":"र", "IDR":"Rp", "KZT":"〒",
-           "CAD":"$", "QAR":"ر.ع.", "KGS":"с", "CNY":"元", "MDL":"L", "NZD":"$", "NOK":"kr", "PLN":"zł", "RON":"L",
-           "XDR":" СДР", "SGD":"$", "TJS":"с.", "THB":"฿", "TRY":"TL", "TMT":"m", "UZS":"сўм", "UAH":"₴", "CZK":"Kč",
-           "SEK":"kr", "CHF":"₣", "RSD":"RSD", "ZAR":"R", "KRW":"₩", "JPY":"¥", "RUR": "₽"}  # словарь знаков валюты
 
-# = = = общие функции
+api_log = 'https://www.cbr-xml-daily.ru/daily_json.js'
+
+dict_symbol = {"AUD":"$", "AZN":"₼", "GBP":"£", "AMD":"Դ", "BYN":"Br", "BGN":"лв", "BRL":"R$", "HUF":"Ft", "VND":"₫",
+       "HKD":"$", "GEL":"₾", "DKK":"kr", "AED":"Dh", "USD":"$", "EUR":"€", "EGP":"£", "INR":"र", "IDR":"Rp",
+       "KZT":"〒", "CAD":"$", "QAR": "Dh", "KGS":"с", "CNY":"元", "MDL":"L", "NZD":"$", "NOK":"kr", "PLN":"zł",
+       "RON":"L", "XDR": "XDR", "SGD": "$", "TJS": "с.", "THB": "฿", "TRY": "TL", "TMT": "m", "UZS": "сўм", "UAH": "₴",
+       "CZK":"Kč", "SEK":"kr", "CHF":"₣", "RSD":"RSD", "ZAR":"R", "KRW":"₩", "JPY":"¥", "RUR": "₽"}  # словарь знаков валюты
+
+# = = = Общие функции
 # ---запрос к серверу валют
 def dict_curr():
     # запрос к сайту
-    log_query = requests.get('https://www.cbr-xml-daily.ru/daily_json.js')
+    log_query = requests.get(api_log)
     currency_dict = log_query.json()['Valute']  # перевод в JSON ответа от сервера
     """
     формат ответа JSON
@@ -101,12 +123,13 @@ def list_curr():
 
         #  вывод знака валюты из словаря dict_symbol
         if dict_symbol.get(key) is None:
-            text = f'{text}{key} - {val[0]}\n'
+            text = f'{text}/{key} - {val[0]}\n'
         else:
             symbol = dict_symbol[key]
-            text = f'{text}{key} - {val[0]} ({symbol})\n'
+            text = f'{text}/{key} - {val[0]} ({symbol})\n'
     return text
 
+#  - - - Курс Ерво и доллара
 def usd_eur():
     valute = dict_curr()  # запрос словаря из функции
     text = f'💹 Курсы валют на сегодня:\n'
@@ -131,26 +154,48 @@ def usd_eur():
 
     return text + text_usd + text_eur
 
+#  - - -Курс любой валюты, по запросу пользователя
+def full_curr(word):
+    valute = dict_curr()
+    text_0 = f'💹 Курс валюты на сегодня:\n{valute[word][0]}\n'
+
+    # значок валюты из словаря
+    if dict_symbol.get(word) is None:
+        sym = ""
+    else:
+        sym = str(dict_symbol[word])
+
+    # разность курса сегодня - вчера
+    delta = round(float(valute[word][1]) - float(valute[word][2]), 2)
+
+    if delta > 0:
+        text_1 = f'₽ {valute[word][1]} за {valute[word][3]} {sym} (+{delta}) 🟢 ⬆️'
+    elif delta == 0:
+        text_1 = f'₽ {valute[word][1]} за {valute[word][3]} {sym} (+{delta}) 🟠 ⏸️'
+    else:
+        text_1 = f'₽ {valute[word][1]} за {valute[word][3]} {sym} (-{abs(delta)}) 🔴 ️⬇️'
+
+    return text_0 + text_1
+
 
 # ⤵️↔️⬆️⬇️🔼🔼🔽⏸️🟢🔴🟠⤴️
 # 💸💰⬆️⬇️🔻
 
 # = = = Команды для управления приложением
+# ----- Курс валюты из списка list_curr
+@bot.message_handler(commands=[x for x in dict_curr().keys()])
+def all_curr(message):
+    #  удаление слеш "\" из команды валюты \PLN
+    word = message.text.replace("/", "")
 
-@bot.message_handler(commands=["qw"])
-def fun_qww(message):
-    bot.send_message(message.chat.id, f'🔖 Список доступных ')
-    text = ""
-    i = 0
-    for q in dict_curr().keys():
-       text = text + q
+    buttons = [
+        types.InlineKeyboardButton('Меню', callback_data='menu'),
+        types.InlineKeyboardButton('Справка', callback_data='help')
+    ]
+    keyboard = types.InlineKeyboardMarkup(row_width=2)  # наша клавиатура (кол-во кнопок в ряд)
+    keyboard.add(*buttons)
+    bot.send_message(message.chat.id, full_curr(word), reply_markup=keyboard)
 
-    bot.send_message(message.chat.id, f'🔖 Список:\n{text}')
-    # bot.send_message(message.chat.id, f'🔖 Список доступных валют:\n{list_curr()}')
-    # text = message.text.upper()
-    # bot.send_message(message.chat.id, text)
-    # qw = [x for x in dict_currency().keys()]
-    # bot.send_message(message.chat.id, list_curr())
 # -----  Справка
 @bot.message_handler(
     commands=["Справка", "СПРАВКА", "справка", "help", "Help", "HELP", "hElp", "heLp", "helP", "HElp", "HElP", "HELp",
@@ -159,7 +204,7 @@ def help(message):
     buttons = [
         types.InlineKeyboardButton('Меню', callback_data='menu'),
         types.InlineKeyboardButton('Описание команд', callback_data='info'),
-        types.InlineKeyboardButton('Список валют', callback_data='list_curr'),
+        types.InlineKeyboardButton('Список валют', callback_data='list'),
         types.InlineKeyboardButton('Курс USD/EUR', callback_data='UsdEur')
     ]
     keyboard = types.InlineKeyboardMarkup(row_width=2)  # наша клавиатура (кол-во кнопок в ряд)
@@ -246,7 +291,7 @@ def valute(message):
 def multy(message):
 
     text = '♻️ Конвертер валют:\nВведите наименование двух валют для сравнения через тире\n' \
-           '(Пример: usd-eur, AUD-NOK, Czk - Zar)'
+           '(Пример: usd-eur, AUD . NOK, Czk Zar)'
     buttons = [
         types.InlineKeyboardButton('Меню', callback_data='menu'),
         types.InlineKeyboardButton('Описание команд', callback_data='info'),
@@ -276,10 +321,6 @@ def end(message):
 # = = = Реагирование на кнопки = = =
 @bot.callback_query_handler(func=lambda call: True)
 def callback_worker(call):
-    user_id = str(call.from_user.id)
-    message_id = call.message.message_id
-    chat_id = call.message.chat.id
-
 
     if call.message:
         # ----- Выполнение кнопки "Отмена"
@@ -349,10 +390,10 @@ def callback_worker(call):
 
             bot.send_message(call.message.chat.id,  usd_eur(), reply_markup=keyboard)
 
-        # ----- Кнопка курс валют USD / EUR
+        # ----- Кнопка конвертер валют jpy-usd
         elif call.data == "multy":
             text = '♻️ Конвертер валют:\nВведите наименование двух валют для сравнения через тире\n' \
-                   '(Пример: usd-eur, AUD-NOK, Czk - Zar)'
+                   '(Пример: usd-eur, AUD . NOK, Czk Zar)'
 
             buttons = [
                 types.InlineKeyboardButton('Меню', callback_data='menu'),
@@ -367,6 +408,7 @@ def callback_worker(call):
 
         # ----- Кнопка Список валют
         elif call.data == 'list':
+
             buttons = [
                 types.InlineKeyboardButton('Меню', callback_data='menu'),
                 types.InlineKeyboardButton('Описание команд', callback_data='info'),
@@ -386,12 +428,10 @@ def callback_worker(call):
 @bot.message_handler(content_types=["text"])
 def echo(message):
 
-    # user_id = str(message.from_user.id)
-    # user_name = str(message.from_user.username)  # Log пользователя
-    # time_sms = message.date
+    # word = message.text.upper().replace(" ", "")
 
-    word = message.text.upper().replace(" ", "")
-    valute = dict_curr() # запрос словаря из функции
+    word = message.text.upper().strip()
+    valute = dict_curr()    # запрос словаря из функции
 
     # ---Сценарий - завершение всех команд
     if word == "/":
@@ -405,14 +445,19 @@ def echo(message):
         bot.send_message(message.chat.id, "⛔ Выполнение команды завершено.", reply_markup=keyboard)
 
     # --- Конвертер валют (если больше 3 символов в запросе)  🚫♻️
-    elif len(word) > 3 and "-" in word:
-        text_ = word.split(maxsplit=1, sep="-")
-        valute_1 = text_[0].upper()
-        valute_2 = text_[1].upper()
+    elif len(word) > 3 and ("-" in word or "." in word or " " in word):
+
+        # text_ = word.split(maxsplit=1, sep="-")
+
+        delimiters = r"[ -.]+"
+        text_ = re.split(delimiters, word)
+
+        valute_1 = text_[0].upper().strip()
+        valute_2 = text_[1].upper().strip()
 
         buttons = [
             types.InlineKeyboardButton('Меню', callback_data='menu'),
-            types.InlineKeyboardButton('Новый список', callback_data='add'),
+            types.InlineKeyboardButton('Список валют', callback_data='list')
         ]
         keyboard = types.InlineKeyboardMarkup(row_width=2)  # наша клавиатура (кол-во кнопок в ряд)
         keyboard.add(*buttons)
@@ -426,17 +471,17 @@ def echo(message):
                 sym_1 = dict_symbol[valute_1]
 
             if dict_symbol.get(valute_2) is None:
-                    sym_2 = ""
+                sym_2 = ""
             else:
                 sym_2 = dict_symbol[valute_2]
-            #
-            # text_0 = f'Конвертер валют: {sym_1} {valute_1} - {sym_2} {valute_2}\n'
+
             text_0 = f'💸 Конвертер валют:\n {sym_1} {valute[valute_1][0]} - {sym_2} {valute[valute_2][0]}\n'
+
             convert = round( float( valute[valute_1][1] ) * float( valute[valute_2][3] ) / float( valute[valute_2][1] ), 2)
 
             text_1 = f'{valute[valute_1][3]} {sym_1} ({valute_1}) = {convert} {sym_2} ({valute_2})'
 
-            bot.send_message(message.chat.id, text_0 + text_1)
+            bot.send_message(message.chat.id, text_0 + text_1, reply_markup=keyboard)
         else:
 
             bot.send_message(message.chat.id, f'🚫 Названия валют не найдено.\n'
@@ -444,36 +489,18 @@ def echo(message):
 
     #- --- курс одной валюты, если название валюты есть в словаре:  { EUR :[Евро, 79.4966, 79.6765, 1,]}
     #                                                           { Word:[ 0(имя)  1(сегодня) 2(вчера) 3(номинал)]}
-    # ⤵️↔️⬆️⬇️🔼🔼🔽⏸️🟢🔴🟠⤴️
-    # 💸💰⬆️⬇️🔻    ⬆️⬇️
+    # ⤵️↔️⬆️⬇️🔼🔼🔽⏸️🟢🔴🟠⤴️    # 💸💰⬆️⬇️🔻    ⬆️⬇️
     elif valute.get(word) is not None:
 
-        text_0 = f'💹 Курс валюты на сегодня:\n{valute[word][0]}\n'
-        # значок валюты из словаря
-        if dict_symbol.get(word) is None:
-            sym = ""
-        else:
-            sym = dict_symbol[word]
-
-        # разность курса сегодня - вчера
-        delta = round(float(valute[word][1]) - float(valute[word][2]), 2)
-
-        if delta > 0:
-            text_1 = f'₽ {valute[word][1]} за {valute[word][3]} {sym} (+{delta}) 🟢 ⬆️'
-        elif delta == 0:
-            text_1 = f'₽ {valute[word][1]} за {valute[word][3]} {sym}  (+{delta}) 🟠 ⏸️'
-        else:
-            text_1 = f'₽ {valute[word][1]} за {valute[word][3]} {sym}  (-{abs(delta)}) 🔴 ️⬇️'
-
-        # _text = dict_curr()
         buttons = [
             types.InlineKeyboardButton('Меню', callback_data='menu'),
             types.InlineKeyboardButton('Справка', callback_data='help')
         ]
         keyboard = types.InlineKeyboardMarkup(row_width=2)  # наша клавиатура (кол-во кнопок в ряд)
         keyboard.add(*buttons)
-        bot.send_message(message.chat.id, text_0 + text_1, reply_markup=keyboard)
+        # bot.send_message(message.chat.id, text_0 + text_1, reply_markup=keyboard)
 
+        bot.send_message(message.chat.id, full_curr(word), reply_markup=keyboard)
 
     # --- Сценарий команды нет в списке
     else:
@@ -489,8 +516,7 @@ def echo(message):
 
 
 
-
-#
+ # =========================================#
 # Отправляем длинное сообщение по частям
 # todos = log_qyery.json()['Valute']   # данные в формате JSON
 #     if len(str(todos)) > 4096:
@@ -498,11 +524,7 @@ def echo(message):
 #             bot.send_message(message.chat.id, str(todos)[x:x + 4096])
 #     else:
 #         bot.send_message(message.chat.id, str(todos))
-# -----------------------------------
-
- #
-
-
+# -=================
 
 
 # keep_alive()  #запускаем flask-сервер
