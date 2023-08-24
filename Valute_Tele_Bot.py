@@ -46,7 +46,8 @@ import re
 # bot = telebot.TeleBot(my_secret, skip_pending=True)
 # -----------------------------
 
-bot = telebot.TeleBot(TG_TOKEN, skip_pending=True)
+
+# bot = telebot.TeleBot(TG_TOKEN, skip_pending=True)
 
 # 💹💰💴💵💶💷💸💲
 # 📈📉📊

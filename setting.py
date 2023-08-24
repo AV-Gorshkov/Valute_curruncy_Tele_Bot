@@ -7,3 +7,5 @@
 
 
 TG_TOKEN = "6169741007:AAG2l3JppJhuIAKPGqDPG-u1-uhh6MM8K9E"
+
+Pogoda_TOKEN = 'b297aefdcbe2cb90cca6f16719a8d55f'
