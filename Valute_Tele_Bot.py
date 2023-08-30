@@ -29,7 +29,9 @@ import os
 
 #----- Для REPL-IT
 # # === обращение к БД Replit, поддержка работы 24/7
+
 # import os
+# import requests
 # from backgroud import keep_alive  #импорт функции для поддержки работоспособности
 #
 # # from replit import db
@@ -41,9 +43,14 @@ import os
 # import telebot
 # from telebot import types
 # import time
-# from datetime import datetime
+# import datetime
+# import json
+# import re
+#
 #
 # my_secret = os.environ['token']
+# my_secret_2 = os.environ['Pogoda_TOKEN']
+#
 # bot = telebot.TeleBot(my_secret, skip_pending=True)
 # -----------------------------
 
@@ -55,35 +62,41 @@ bot = telebot.TeleBot(TG_TOKEN, skip_pending=True)
 
 HELP = """
 Приветствую!✌️ Я Чат-Бот! 
-📊 Подскажу тебе курс самых популярных валют на текущую дату по курсу ЦБ РФ.
+📊 Подскажу тебе курс самых популярных валют на текущую дату по курсу ЦБ РФ, или прогноз погоды в твоем городе! 🌤️🤷‍♂️☔
 Нажми на кнопку ниже, что бы узнать функционал доступных команд и их описание:
 ©️
 """
 
 #  ---------------- описание вызываемых команд
-MENU = """✏️ Команды доступные в приложении
-/info - (Info, Описание) - описание действия команд и кнопок приложения.
+MENU = """✏️ Команды доступные в приложении:
 /help - (Нelp, Справка, ? ) - вызов справки о программе, знакомство с приложением.
+/info - (Info, Описание) - описание действия команд и кнопок приложения.
 /list - (List, Список) - список валют, доступных для просмотра.
 /end - (/End, /Отмена, /) -  отмена всех команд.
 /usd - (/Usd, /Eur) - курс Доллара, Евро и изменение с предыдущем значением. 
-/multy - (Multy, Мульти) - конвертер валют.
+/multy - (/Multy, /Мульти) - конвертер валют.
+/weather - (/Weather, /Погода) - прогноз погоды на сегодня.
+/predict - (/predict, /Прогноз) - прогноз погоды на несколько дней.
 /menu - (Menu, Меню) - Меню - список доступных команд приложения.
 """
 
-#
 INFO = """ Описание взаимодействия с приложением:
-💵 Все команды из списка в "Menu" вызываются через слэш "/" 
-(Пример: /list, /usd, /Menu)
-💷 Информация по курсу для одной валюты - ввести ID валюты из списка валют
+✔️ Все команды из списка в "Menu" вызываются через слэш "/" 
+(Пример: /list, /usd, /weather, /Menu)
+✔️ Информация по курсу для одной валюты - ввести ID валюты из списка валют
 (Пример: eur, NZD, Usd)
-💶 Конвертер валют - информация по курсу между двумя выбранными валютами. 
+✔️ Информация о погоде в любом городе мира - ввести название города.
+(Пример: Москва, санкт-петербург, PARIS, Viena)
+✔️ Конвертер валют - информация о курсе выбранных валют. 
 В качестве разделителя может быть: точка, тире, пробел
 (Пример: usd-eur, AUD . NOK, Czk Zar)
 """
 
 # ===== Блок переменных
 dict_currency = {}   # словарь валют
+# --- Маркер
+user_marker = {}     # маркер сценария: 1 - курс валюты 2 - погода
+predict_marker = {}  # маркер сценария прогноза погоды
 
 # --- Базовые параметры
 api_log = 'https://www.cbr-xml-daily.ru/daily_json.js'  # сервис валют
@@ -96,7 +109,7 @@ api_weather_2 = f'&lang={lang}&units={units}&appid={Pogoda_TOKEN}'
 api_weather_3 = f'http://api.openweathermap.org/data/2.5/forecast?lat='
 
 # --- словарь знаков валюты
-dict_symbol = {"AUD":"$", "AZN": "₼", "GBP":"£", "AMD":"Դ", "BYN":"Br", "BGN":"лв", "BRL":"R$", "HUF":"Ft", "VND":"₫",
+dict_symbol = {"AUD": "$", "AZN": "₼", "GBP":"£", "AMD":"Դ", "BYN":"Br", "BGN":"лв", "BRL":"R$", "HUF":"Ft", "VND":"₫",
        "HKD":"$", "GEL":"₾", "DKK":"kr", "AED":"Dh", "USD":"$", "EUR":"€", "EGP":"£", "INR":"र", "IDR":"Rp",
        "KZT":"〒", "CAD":"$", "QAR": "Dh", "KGS":"с", "CNY":"元", "MDL":"L", "NZD":"$", "NOK":"kr", "PLN":"zł",
        "RON":"L", "XDR": "XDR", "SGD": "$", "TJS": "с.", "THB": "฿", "TRY": "TL", "TMT": "m", "UZS": "сўм", "UAH": "₴",
@@ -113,19 +126,8 @@ code_to_smile = {
      "Fog": "Туман \U0001F32B",
      "Mist": "Туман \U0001F300"
 }
-# смайлы температуры
-# \U0001F321 - градусник >27
-# \U000026F1  зонтик >20
-#                    >10
-# \U00002744 - снежика < 0
-# \U00002603 - снеговие <-10 шарф
-#                          <-20
-
-
-# --- Маркер
-user_marker = {}     # маркер сценария: 1 - курс валюты 2 - погода
-predict_marker = {}  # маркер сценария прогноза погоды
-
+# --- список название месяца
+month_list = ['Янв.', 'Фев.', 'Мар.', 'Апр.', 'Май', 'Июн.', 'Июл.', 'Авг.', 'Сен.', 'Окт.', 'Ноя.', 'Дек.']
 
 # = = = Общие функции
 # ---запрос к серверу валют
@@ -248,6 +250,24 @@ def rose_wind(wind):
     wind = f'{speed} {direct}'
     return wind
 
+#  - смайл температуры
+def temp_smile(temp):
+    if temp > 25:
+        text = '\U0001F321'
+    elif temp > 18:
+        text = '\U0001F3D6' # '\U000026F1'
+    elif temp > 10:
+        text = '\U00002600'
+    elif temp > 3:
+        text = '\U0001F9E2'     #\U0001F576'
+    elif temp > -3:
+        text = '\U00002744'
+    elif temp < -10:
+        text = '\U0001F9E3'
+    elif temp < -20:
+        text = '\U00002603'
+    return text
+
 # --- Запрос к сервису погоды
 def api_weather(city_name):
 
@@ -269,9 +289,6 @@ def api_predicat(lat, lon):
         dict_param = {}       # словарь параметров погоды
         dict_predicat = {}    # словарь для сбора дата-> погода
 
-        # --- список название месяца
-        month_list = ['Янв.', 'Фев.', 'Мар.', 'Апр.', 'Май', 'Июн.',\
-                      'Июл.', 'Авг.', 'Сен.', 'Окт.', 'Ноя.', 'Дек.']
 
         for i, line in enumerate(data['list']):
 
@@ -300,11 +317,12 @@ def api_predicat(lat, lon):
             humidity = line["main"]["humidity"]  # влажность
             pressure = float(line["main"]["pressure"])  # давление гектопаскаль / 1,333
             wind = rose_wind(line["wind"])  # словарь с параметрами ветра в функцию
-            cur_weather = f"{round(temp, 1)}°C (ощущается как {round(temp_feels, 1)}°C)"   # температура для вывода
+
+            cur_weather = f"{round(temp, 1)}°C (ощущается как {round(temp_feels, 1)}°C)" \
+                          f" {temp_smile(round(temp_feels, 1))}"   # температура для вывода
 
             # получаем значение погоды для смайла
             weather_description = line["weather"][0]["main"]
-
             if weather_description in code_to_smile:
                 wd = code_to_smile[weather_description]
             else:
@@ -397,7 +415,7 @@ def predict(message):
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     keyboard.add(*buttons)
 
-    bot.send_message(message.chat.id, "🧙 Напиши название города, и я покажу прогноз погоды на ближайшие дни", reply_markup=keyboard)
+    bot.send_message(message.chat.id, "🔮 Напиши название города, и я покажу прогноз погоды на ближайшие дни", reply_markup=keyboard)
 
 # -----  Справка
 @bot.message_handler(
@@ -529,7 +547,7 @@ def weather_one(message):
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     keyboard.add(*buttons)
 
-    bot.send_message(message.chat.id, "🧙 Напиши название города, и я покажу какая там сейчас погода", reply_markup=keyboard)
+    bot.send_message(message.chat.id, "🔮 Напиши название города, и я покажу какая там сейчас погода", reply_markup=keyboard)
 
 
 # ----- Отмена всех команд /end
@@ -681,7 +699,7 @@ def callback_worker(call):
             keyboard = types.InlineKeyboardMarkup(row_width=2)
             keyboard.add(*buttons)
 
-            bot.send_message(call.message.chat.id, "🧙 Напиши название города, и я покажу какая там сейчас погода",
+            bot.send_message(call.message.chat.id, "🔮 Напиши название города, и я покажу какая там сейчас погода",
                              reply_markup=keyboard)
 
         # ----- Кнопка Прогноз Погоды на 5 дней
@@ -698,7 +716,7 @@ def callback_worker(call):
             keyboard = types.InlineKeyboardMarkup(row_width=2)
             keyboard.add(*buttons)
 
-            bot.send_message(call.message.chat.id, "🧙 Напиши название города, и я покажу какая там сейчас погода",
+            bot.send_message(call.message.chat.id, "🔮 Напиши название города, и я покажу какая там сейчас погода",
                              reply_markup=keyboard)
 
 
@@ -741,10 +759,10 @@ def echo(message):
         data = api_weather(city_name)
 
         buttons = [
-            types.InlineKeyboardButton('Отмена', callback_data='cancel'),
+            types.InlineKeyboardButton('Погода', callback_data='weather'),
             types.InlineKeyboardButton('Курс валют', callback_data='list'),
-            types.InlineKeyboardButton('Курс USD/EUR', callback_data='UsdEur'),
-            types.InlineKeyboardButton('Описание команд', callback_data='info'),
+            types.InlineKeyboardButton('Отмена', callback_data='cancel'),
+            types.InlineKeyboardButton('Описание команд', callback_data='info')
         ]
         keyboard = types.InlineKeyboardMarkup(row_width=2)
         keyboard.add(*buttons)
@@ -775,7 +793,7 @@ def echo(message):
                     types.InlineKeyboardButton('Погода сейчас', callback_data='weather'),
                     types.InlineKeyboardButton('Курс валют', callback_data='list'),
                     types.InlineKeyboardButton('Отмена', callback_data='cancel'),
-                    types.InlineKeyboardButton('Описание команд', callback_data='info'),
+                    types.InlineKeyboardButton('Описание команд', callback_data='info')
                 ]
                 keyboard = types.InlineKeyboardMarkup(row_width=2)
                 keyboard.add(*buttons)
@@ -785,7 +803,33 @@ def echo(message):
         #  погода на сегодня
             elif predict_marker[user_id] == 0:
 
-                #  парсим JSON запрос погоды
+                # для вывода даты и часов
+                dt_obj = datetime.datetime.fromtimestamp(int(data["dt"]))   #.strftime('%Y-%m-%d %H:%M:%S')
+
+                # dt_obj = datetime.datetime.fromtimestamp(int(data["dt"]) + int(data["timezone"]))  # для ReplIT учет час.поясов
+
+                int_Hours = int(datetime.datetime.strftime(dt_obj, '%H'))
+                # int_Min = str(datetime.datetime.strftime(dt_obj, '%M'))
+                int_Mon = int(datetime.datetime.strftime(dt_obj, '%m'))
+                int_Day = int(datetime.datetime.strftime(dt_obj, '%d'))
+
+
+                text_data = f'{int_Day} {month_list[int_Mon - 1]}'
+                #  смайл для часов
+                if int_Hours < 5:
+                    p_time = f'🌑'
+                elif int_Hours < 10:
+                    p_time = f'🌗'
+                elif int_Hours < 17:
+                    p_time = f'🌕️'
+                else:
+                    p_time = f'🌓️'
+                #  - для сервера reolIT  возращается время минс 3 часа datetime.datetime.now()
+                # text_time = f"{p_time} {text_data} {datetime.datetime.now().strftime('%H:%M')}"
+
+                text_time = f"{p_time} {text_data} {datetime.datetime.strftime(dt_obj, '%H:%M')}"
+
+                                 #  парсим JSON запрос погоды
                 city = data["name"]  # город
                 temp_avg = float(data["main"]["temp"])  # температура средняя
                 temp_min = float(data["main"]["temp_min"])  # температура min
@@ -798,7 +842,9 @@ def echo(message):
                 # wind = data["wind"]["speed"]                    # ветер скорость
                 # rose_w = rose_wind( int(data["wind"]["deg"]) )  # нарпавление ветра
 
-                cur_weather = f'{round(temp_min, 1)}°...{round(temp_max, 1)}°C, ощущается как {round(temp_feels, 1)}°C'  # температура для вывода
+                # temp_smile(round(temp_feels, 1))
+                cur_weather = f'{round(temp_min, 1)}°...{round(temp_max, 1)}°C,' \
+                      f' ощущается как {round(temp_feels, 1)}°C {temp_smile(round(temp_feels, 1))}'  # температура для вывода
 
                 # получаем время рассвета и преобразуем его в читабельный формат
                 sunrise_timestamp = datetime.datetime.fromtimestamp(data["sys"]["sunrise"]).strftime('%H:%M')
@@ -829,11 +875,18 @@ def echo(message):
                 keyboard.add(*buttons)
 
                 bot.send_message(message.chat.id,
-                     f"Погода на {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}:\n"
-                     f"В городе: {city}\nТемпература: {cur_weather}\n{wd}\n"
+                     f"{text_time}\nПогода в городе {city}: {wd}\n"
+                     f"Температура: {cur_weather}\n"
                      f"Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
-                     f"Восход солнца: {sunrise_timestamp}\nЗакат солнца: {sunset_timestamp}\nПродолжительность дня: {length_of_the_day}\n"
-                     , reply_markup=keyboard)
+                     f"Восход солнца: {sunrise_timestamp}\nЗакат солнца: {sunset_timestamp}\nПродолжительность дня: {length_of_the_day}\n",
+                     reply_markup=keyboard)
+
+                # bot.send_message(message.chat.id,
+                #      f"Погода на {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}:\n"
+                #      f"В городе: {city}\nТемпература: {cur_weather}\n{wd}\n"
+                #      f"Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
+                #      f"Восход солнца: {sunrise_timestamp}\nЗакат солнца: {sunset_timestamp}\nПродолжительность дня: {length_of_the_day}\n"
+                #      , reply_markup=keyboard)
 
     # ---Сценарий курс валют
     elif user_marker[user_id] == 1:
@@ -898,6 +951,7 @@ def echo(message):
 
             bot.send_message(message.chat.id, full_curr(word), reply_markup=keyboard)
 
+        #  команда не распознана
         else:
             buttons = [
                 types.InlineKeyboardButton('Список валют', callback_data='list'),
