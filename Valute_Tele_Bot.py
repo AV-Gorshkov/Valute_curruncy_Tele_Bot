@@ -99,6 +99,9 @@ user_marker = {}     # маркер сценария: 1 - курс валюты 
 predict_marker = {}  # маркер сценария прогноза погоды
 
 # --- Базовые параметры
+
+time_mow = 10800 # часовой пояс по Москве +3 ч - для ReplIT
+
 api_log = 'https://www.cbr-xml-daily.ru/daily_json.js'  # сервис валют
 
 # - сервис погоды
@@ -253,11 +256,11 @@ def rose_wind(wind):
 #  - смайл температуры
 def temp_smile(temp):
     if temp > 25:
-        text = '\U0001F321'
+        text = '\U0001F321'      #   🌡️
     elif temp > 18:
-        text = '\U0001F3D6' # '\U000026F1'
+        text = '\U0001F3D6'     # '\U000026F1'  🏖️
     elif temp > 10:
-        text = '\U00002600'
+        text = '\U0001F31E'           #   🌞
     elif temp > 3:
         text = '\U0001F9E2'     #\U0001F576'
     elif temp > -3:
@@ -728,7 +731,9 @@ def callback_worker(call):
 def echo(message):
 
     user_id = str(message.from_user.id)
-    user_marker.setdefault(user_id, 1)
+    user_marker.setdefault(user_id, 2)
+    predict_marker.setdefault(user_id, 0)
+
 
     # word = message.text.upper().replace(" ", "")
     # word = message.text.upper().strip()
@@ -804,7 +809,13 @@ def echo(message):
             elif predict_marker[user_id] == 0:
 
                 # для вывода даты и часов
-                dt_obj = datetime.datetime.fromtimestamp(int(data["dt"]))   #.strftime('%Y-%m-%d %H:%M:%S')
+                # ------------------------------- погода по Моске + 3 часа для replIt
+                # delta = int(datetime.datetime.fromtimestamp(timezone).strftime('%H'))
+                # dt_obj = datetime.datetime.now() + datetime.timedelta(hours=delta)
+                # ---------------------------------------------------------------------
+
+                dt_obj = datetime.datetime.fromtimestamp( int(data["dt"]) + int(data["timezone"]) - time_mow)   #.strftime('%Y-%m-%d %H:%M:%S')
+                # dt_obj = datetime.datetime.now() #.strftime('%Y-%m-%d %H:%M:%S')
 
                 # dt_obj = datetime.datetime.fromtimestamp(int(data["dt"]) + int(data["timezone"]))  # для ReplIT учет час.поясов
 
@@ -827,7 +838,7 @@ def echo(message):
                 #  - для сервера reolIT  возращается время минс 3 часа datetime.datetime.now()
                 # text_time = f"{p_time} {text_data} {datetime.datetime.now().strftime('%H:%M')}"
 
-                text_time = f"{p_time} {text_data} {datetime.datetime.strftime(dt_obj, '%H:%M')}"
+                text_time = f"{p_time} {text_data}"
 
                                  #  парсим JSON запрос погоды
                 city = data["name"]  # город
@@ -875,7 +886,7 @@ def echo(message):
                 keyboard.add(*buttons)
 
                 bot.send_message(message.chat.id,
-                     f"{text_time}\nПогода в городе {city}: {wd}\n"
+                     f"{text_time}\nВ городе {city}: {datetime.datetime.strftime(dt_obj, '%H:%M')}...{wd}\n"
                      f"Температура: {cur_weather}\n"
                      f"Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
                      f"Восход солнца: {sunrise_timestamp}\nЗакат солнца: {sunset_timestamp}\nПродолжительность дня: {length_of_the_day}\n",
