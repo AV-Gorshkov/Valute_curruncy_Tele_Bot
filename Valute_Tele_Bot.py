@@ -558,7 +558,7 @@ def weather_one(message):
 def end(message):
 
     user_id = str(message.from_user.id)
-    user_marker[user_id] = 1
+    user_marker[user_id] = 2
     predict_marker[user_id] = 0
 
     buttons = [
@@ -617,8 +617,8 @@ def callback_worker(call):
             buttons = [
                 types.InlineKeyboardButton('Погода', callback_data='weather'),
                 types.InlineKeyboardButton('Курс валют', callback_data='list'),
-                types.InlineKeyboardButton('Конвертер', callback_data='multy'),
-                types.InlineKeyboardButton('Курс USD/EUR', callback_data='UsdEur')
+                types.InlineKeyboardButton('Меню', callback_data='menu'),
+                types.InlineKeyboardButton('Описание команд', callback_data='info')
             ]
             keyboard = types.InlineKeyboardMarkup(row_width=2)  # наша клавиатура (кол-во кнопок в ряд)
             keyboard.add(*buttons)
@@ -719,7 +719,7 @@ def callback_worker(call):
             keyboard = types.InlineKeyboardMarkup(row_width=2)
             keyboard.add(*buttons)
 
-            bot.send_message(call.message.chat.id, "🔮 Напиши название города, и я покажу какая там сейчас погода",
+            bot.send_message(call.message.chat.id, "🔮 Напиши название города, и я покажу прогноз погоды на ближайшие дни",
                              reply_markup=keyboard)
 
 
@@ -743,7 +743,7 @@ def echo(message):
     # ---Сценарий - завершение всех команд
     if word == "/":
 
-        user_marker[user_id] = 1
+        user_marker[user_id] = 2
         predict_marker[user_id] = 0
 
         buttons = [
@@ -785,10 +785,12 @@ def echo(message):
                 lon = data["coord"]["lon"]  # координаты города
                 lat = data["coord"]["lat"]  # координаты города
                 city = data["name"]  # город
-                data = api_predicat(lat, lon)
+                bot.send_message(message.chat.id, f'город - {city}, коорд {lat}={lon}')
+
+                log_data = api_predicat(lat, lon)
 
                 text = ""
-                for dt, line in data.items():
+                for dt, line in log_data.items():
                     text = f'{text}{dt}\n'
                     for hours, parm in line.items():
                         text = f'{text}{hours}: {parm}'
