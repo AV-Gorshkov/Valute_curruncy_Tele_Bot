@@ -125,14 +125,20 @@ code_to_smile = {
      "ясно": " \U00002600",
      "солнечно": " \U0001F31E",
      "пасмурно": " \U0001F325",
-     "облачно": " \U000026C5",   #\U00002601"
-     # "дождь": "Дождь \U00002614",
+     "переменнаяоблачность": " \U000026C5",
+     "ливневыйдождь": " \U0001F327",
+     "небольшойдождь": " \U00002614",
+     "умеренныйдождь": " \U0001F326",
+     "облачно": " \U00002601",
      "дождь": " \U0001F326",
      "гроза": " \U000026C8",
-     "снег": " \U0001F328",
+     "умеренныйснег": " \U00002603",
+     "небольшойснег": " \U00002744",
      "туман": " \U0001F32B",
      "морось": " \U0001F4A7",
-     "дымка": " \U0001F300"
+     "дымка": " \U0001F300",
+     "cильныйснег": " \U0001F328",
+     "снег": " \U0001F328"
 }
 # --- список название месяца
 month_list = ['Янв.', 'Фев.', 'Мар.', 'Апр.', 'Май', 'Июн.', 'Июл.', 'Авг.', 'Сен.', 'Окт.', 'Ноя.', 'Дек.']
@@ -269,32 +275,34 @@ def rose_wind(wind):
 def temp_smile(temp):
     temp = float(temp)
 
-    if temp > 25:
-        text = '\U0001F321'      #   🌡️
-    elif temp > 18:
-        text = '\U0001F3D6'     # '\U000026F1'  🏖️
+    if temp > 33:
+       text = '\U0001F975'     # 🥵
+    elif temp > 25:
+       text = '\U0001F321'     # 🌡️
+    elif temp > 17:
+       text = '\U0001F3D6'     # 🏖️
     elif temp > 10:
-        text = '\U0001F31E'           #   🌞
+       text = '\U0001F31E'     # 🌞
     elif temp > 3:
-        text = '\U0001F9E2'     #\U0001F576'
+       text = '\U0001F324'     # 🌤
+    elif temp > 0:
+       text = '\U0001F9E2'     # 🧢
     elif temp > -3:
-        text = '\U00002744'
-    elif temp < -10:
-        text = '\U0001F9E3'
-    elif temp < -20:
-        text = '\U00002603'
+       text = '\U0001F9E3'    # 🧣
+    elif temp > -10:
+       text = '\U00002744'     # ❄️
+    elif temp > -20:
+       text = '\U00002603'     # ⛄
+    elif temp > -25:
+       text = '\U0001F976'     # 🥶
+    else: text = '\U0001F9CA'  # 🧊
     return text
 
 # --- Запрос к сервису погоды
 def api_weather(city_name):
-
     try:
         response = requests.get( f'{api_weather_1}{city_name}' )
-
-        # data = response.json()
-
         data = response.json()
-
         return data
     except:
         text = "error"
@@ -310,10 +318,11 @@ def weather_loc(data):
     # dt_obj = datetime.datetime.now() + datetime.timedelta(hours=delta)
     # ---------------------------------------------------------------------
 
-    dt_obj = datetime.datetime.fromtimestamp(int( data["location"]["localtime_epoch"] ) )  # .strftime('%Y-%m-%d %H:%M:%S')
+    # dt_obj = datetime.datetime.fromtimestamp(int( data["location"]["localtime_epoch"] ) )  # .strftime('%Y-%m-%d %H:%M:%S')
     # dt_obj = datetime.datetime.now() #.strftime('%Y-%m-%d %H:%M:%S')
     # dt_obj = datetime.datetime.fromtimestamp(int(data["dt"]) + int(data["timezone"]))  # для ReplIT учет час.поясов
 
+    dt_obj = datetime.datetime.strptime( data["location"]["localtime"], '%Y-%m-%d %H:%M')
     int_Hours = int(datetime.datetime.strftime(dt_obj, '%H'))
     int_Mon = int(datetime.datetime.strftime(dt_obj, '%m'))
     int_Day = int(datetime.datetime.strftime(dt_obj, '%d'))
@@ -357,10 +366,15 @@ def weather_loc(data):
             break
     else: # если эмодзи для погоды нет, выводим другое сообщение
         wd = f'{weather_description}...посмотрим в окно, я не понимаю, что там за погода...\U0001F32A'
-    #
-    weather_text = f"{text_time}\nВ городе {city}: {datetime.datetime.strftime(dt_obj, '%H:%M')}...{wd}\n"\
+
+    weather_text = f"{text_time}\nВ городе {city} на {datetime.datetime.strftime(dt_obj, '%H:%M')} :...{wd}\n"\
           f"Температура: {cur_weather}\n"\
           f"Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер: {wind_speed}м/с {wind}"
+
+    # weather_text = f"{text_time} на {datetime.datetime.strftime(dt_obj, '%H:%M')}\n"\
+    #                f"В городе {city}: {wd}\n"\
+    #                f"Температура: {cur_weather}\n"\
+    #                f"Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер: {wind_speed}м/с {wind}"
     return weather_text
 
 # --- погода на X дней вперед (по умолчанию сегодня + 5 дней прогноза)
@@ -380,7 +394,9 @@ def api_predicat(city_name, days=6):
         wheather_now = weather_loc(data)
 
         # дата начала прогноза (дата сегодня не попадает в прогноз)
-        st_dt_obj = datetime.datetime.fromtimestamp(int(data["location"]["localtime_epoch"]))
+        # st_dt_obj = datetime.datetime.fromtimestamp(int(data["location"]["localtime_epoch"]))
+
+        st_dt_obj = datetime.datetime.strptime(data["location"]["localtime"], '%Y-%m-%d %H:%M')
         st_int_Hours = int(datetime.datetime.strftime(st_dt_obj, '%H'))
         st_date = datetime.datetime.strftime(st_dt_obj, '%Y-%m-%d')
 
@@ -390,7 +406,8 @@ def api_predicat(city_name, days=6):
 
             # проход по часам в дате
             for hour in line["hour"]:
-                dt_obj = datetime.datetime.fromtimestamp(int( hour['time_epoch'] ) )
+                # dt_obj = datetime.datetime.fromtimestamp(int( hour['time_epoch'] ) )
+                dt_obj = datetime.datetime.strptime(hour["time"], '%Y-%m-%d %H:%M')
 
                 # берем час, день и месяц для вывода на экран
                 int_Hours = int(datetime.datetime.strftime(dt_obj, '%H'))
@@ -455,46 +472,6 @@ def api_predicat(city_name, days=6):
         return [wheather_now, dict_predicat, len(dict_predicat)]
     except:
         return ["error"]
-
-                #     if i == 0:
-                #         # погода на сейчас
-                #         data_start = datetime.datetime.strftime(dt_obj, '%Y-%m-%d')
-                #         param_st = f"{param}Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
-                #         dict_param[text_time] = param_st
-                #         dict_predicat[text_data] = dict_param
-                #     else:
-                #         if data_start == data_next:
-                #             # запись в словарь прогноза погоды на 6-12-18 часов
-                #             if int_Hours == 6 or int_Hours == 12:
-                #                 param_12 = f"Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
-                #                 dict_param[text_time] = param
-                #                 dict_predicat[text_data] = dict_param
-                #             elif int_Hours == 18:
-                #                 if len(param_12) == 0:
-                #                     param_18 = f"{param}Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
-                #                     dict_param[text_time] = param_18
-                #                     dict_predicat[text_data] = dict_param
-                #                 else:
-                #                     dict_param[text_time] = f'{param}{param_12}'
-                #                     dict_predicat[text_data] = dict_param
-                #             else:
-                #                 pass
-                # else:
-                #     data_start = data_next
-                #     dict_param = {}
-                #
-                #     if int_Hours == 6 or int_Hours == 12:
-                #         param_12 = f"Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
-                #         dict_param[text_time] = param
-                #         dict_predicat[text_data] = dict_param
-                #     elif int_Hours == 18:
-                #         if len(param_12) == 0:
-                #             param_18 = f"{param}Влажность: {humidity}%\nДавление: {round(pressure / 1.333, 1)} мм.рт.ст\nВетер м/с: {wind}\n"
-                #             dict_param[text_time] = param_18
-                #             dict_predicat[text_data] = dict_param
-                #         else:
-                #             dict_param[text_time] = f'{param}{param_12}'
-                #             dict_predicat[text_data] = dict_param
 
 
 # ⤵️↔️⬆️⬇️🔼🔼🔽⏸️🟢🔴🟠⤴️
@@ -881,8 +858,6 @@ def echo(message):
         # запрос к серверу погоды
         data =  api_weather(city_name)
 
-
-
         # bot.send_message(message.chat.id, f'вывод {data}')
         # response = requests.get(f"http://api.weatherapi.com/v1/current.json?key={Pogoda_TOKEN}&lang={lang}&q=уфа")
         # data = response.json()
@@ -939,7 +914,7 @@ def echo(message):
 
                 log_data = api_predicat(city_name)
 
-                if log_data[0] == "error":
+                if len(log_data) < 2:
                     bot.send_message(message.chat.id, f'❌ Возмодно сервис недоступен.\n'\
                             f'Проверьте название города и повторите запрос позже...⏳',
                             reply_markup=keyboard)
