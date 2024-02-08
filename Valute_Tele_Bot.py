@@ -8,7 +8,7 @@ import datetime
 import time
 import re
 import os
-# import json
+import json
 
 #===================
 #    # Отправляем       # длинное       # сообщение       # по       # частям
@@ -107,9 +107,10 @@ api_log = 'https://www.cbr-xml-daily.ru/daily_json.js'  # сервис валю�
 # - сервис погоды
 lang = "ru"
 units = "metric"
-api_weather_1 = f'http://api.openweathermap.org/data/2.5/weather?q='
-api_weather_2 = f'&lang={lang}&units={units}&appid={Pogoda_TOKEN}'
-api_weather_3 = f'http://api.openweathermap.org/data/2.5/forecast?lat='
+mode = 'json'
+api_weather_1 = f'https://api.openweathermap.org/data/2.5/weather?q='
+api_weather_2 = f'&lang={lang}&units={units}&mode={mode}&appid={Pogoda_TOKEN}'
+api_weather_3 = f'https://api.openweathermap.org/data/2.5/forecast?q='
 
 # --- словарь знаков валюты
 dict_symbol = {"AUD": "$", "AZN": "₼", "GBP":"£", "AMD":"Դ", "BYN":"Br", "BGN":"лв", "BRL":"R$", "HUF":"Ft", "VND":"₫",
@@ -283,10 +284,10 @@ def api_weather(city_name):
         return text
 
 # --- погода на 5 дней вперед
-def api_predicat(lat, lon):
+def api_predicat(city_name):
 
     try:
-        response = requests.get(f'{api_weather_3}{lat}&lon={lon}{api_weather_2}')
+        response = requests.get(f'{api_weather_3}{city}{api_weather_2}')
 
         data = response.json()
         dict_param = {}       # словарь параметров погоды
@@ -734,7 +735,6 @@ def echo(message):
     user_marker.setdefault(user_id, 2)
     predict_marker.setdefault(user_id, 0)
 
-
     # word = message.text.upper().replace(" ", "")
     # word = message.text.upper().strip()
 
@@ -760,6 +760,7 @@ def echo(message):
     elif user_marker[user_id] == 2:
 
         city_name = word.lower().replace(" ", "")
+
         # запрос к серверу погоды
         data = api_weather(city_name)
 
@@ -782,12 +783,12 @@ def echo(message):
         #  прогноз на несколько дат
             if predict_marker[user_id] == 1:
                 # координаты города из запроса
-                lon = data["coord"]["lon"]  # координаты города
-                lat = data["coord"]["lat"]  # координаты города
-                city = data["name"]  # город
+                # lon = data["coord"]["lon"]  # координаты города
+                # lat = data["coord"]["lat"]  # координаты города
+                # city = data["name"]  # город
                 bot.send_message(message.chat.id, f'город - {city}, коорд {lat}={lon}')
 
-                log_data = api_predicat(lat, lon)
+                log_data = api_predicat(city_name)
 
                 text = ""
                 for dt, line in log_data.items():
